@@ -79,9 +79,10 @@ func NewUpdatePriorityCalculator(vpa *vpa_types.VerticalPodAutoscaler,
 
 // AddPod adds pod to the UpdatePriorityCalculator.
 func (calc *UpdatePriorityCalculator) AddPod(pod *apiv1.Pod, now time.Time) {
+	klog.V(0).Infof("entering  AddPod function for pod %s", pod.Name)
 	processedRecommendation, _, err := calc.recommendationProcessor.Apply(calc.vpa.Status.Recommendation, calc.vpa.Spec.ResourcePolicy, calc.vpa.Status.Conditions, pod)
 	if err != nil {
-		klog.V(2).Infof("cannot process recommendation for pod %s/%s: %v", pod.Namespace, pod.Name, err)
+		klog.V(0).Infof("cannot process recommendation for pod %s/%s: %v", pod.Namespace, pod.Name, err)
 		return
 	}
 
@@ -122,15 +123,15 @@ func (calc *UpdatePriorityCalculator) AddPod(pod *apiv1.Pod, now time.Time) {
 	if !updatePriority.OutsideRecommendedRange && !quickOOM {
 		if pod.Status.StartTime == nil {
 			// TODO: Set proper condition on the VPA.
-			klog.V(4).Infof("not updating pod %v/%v, missing field pod.Status.StartTime", pod.Namespace, pod.Name)
+			klog.V(0).Infof("not updating pod %v/%v, missing field pod.Status.StartTime", pod.Namespace, pod.Name)
 			return
 		}
 		if now.Before(pod.Status.StartTime.Add(*podLifetimeUpdateThreshold)) {
-			klog.V(4).Infof("not updating a short-lived pod %v/%v, request within recommended range", pod.Namespace, pod.Name)
+			klog.V(0).Infof("not updating a short-lived pod %v/%v, request within recommended range", pod.Namespace, pod.Name)
 			return
 		}
 		if updatePriority.ResourceDiff < calc.config.MinChangePriority {
-			klog.V(4).Infof("not updating pod %v/%v, resource diff too low: %v", pod.Namespace, pod.Name, updatePriority)
+			klog.V(0).Infof("not updating pod %v/%v, resource diff too low: %v", pod.Namespace, pod.Name, updatePriority)
 			return
 		}
 	}
@@ -156,7 +157,7 @@ func (calc *UpdatePriorityCalculator) GetSortedPods(admission PodEvictionAdmissi
 		if admission == nil || admission.Admit(podPrio.pod, podPrio.recommendation) {
 			result = append(result, podPrio.pod)
 		} else {
-			klog.V(2).Infof("pod removed from update queue by PodEvictionAdmission: %v", podPrio.pod.Name)
+			klog.V(0).Infof("pod removed from update queue by PodEvictionAdmission: %v", podPrio.pod.Name)
 		}
 	}
 

@@ -198,6 +198,7 @@ func (u *updater) RunOnce(ctx context.Context) {
 		controlledPodsCounter.Add(vpaSize, vpaSize)
 		evictionLimiter := u.evictionFactory.NewPodsEvictionRestriction(livePods, vpa)
 		podsForUpdate := u.getPodsUpdateOrder(filterNonEvictablePods(livePods, evictionLimiter), vpa)
+		klog.V(0).Infof("length of podsDorUpdate %v", len(podsForUpdate))
 		evictablePodsCounter.Add(vpaSize, len(podsForUpdate))
 
 		withEvictable := false
@@ -205,6 +206,7 @@ func (u *updater) RunOnce(ctx context.Context) {
 		for _, pod := range podsForUpdate {
 			withEvictable = true
 			if !evictionLimiter.CanEvict(pod) {
+				klog.Warningf("pod %s won't be evicted", pod.Name)
 				continue
 			}
 			err := u.evictionRateLimiter.Wait(ctx)
@@ -212,7 +214,7 @@ func (u *updater) RunOnce(ctx context.Context) {
 				klog.Warningf("evicting pod %v failed: %v", pod.Name, err)
 				return
 			}
-			klog.V(2).Infof("evicting pod %v", pod.Name)
+			klog.V(0).Infof("evicting pod %v", pod.Name)
 			evictErr := evictionLimiter.Evict(pod, u.eventRecorder)
 			if evictErr != nil {
 				klog.Warningf("evicting pod %v failed: %v", pod.Name, evictErr)
@@ -247,6 +249,7 @@ func getRateLimiter(evictionRateLimit float64, evictionRateLimitBurst int) *rate
 
 // getPodsUpdateOrder returns list of pods that should be updated ordered by update priority
 func (u *updater) getPodsUpdateOrder(pods []*apiv1.Pod, vpa *vpa_types.VerticalPodAutoscaler) []*apiv1.Pod {
+	klog.V(0).Info("Entering getPodsUpdateOrder for list of pods of length %d", len(pods))
 	priorityCalculator := priority.NewUpdatePriorityCalculator(
 		vpa,
 		nil,
@@ -257,6 +260,7 @@ func (u *updater) getPodsUpdateOrder(pods []*apiv1.Pod, vpa *vpa_types.VerticalP
 		priorityCalculator.AddPod(pod, time.Now())
 	}
 
+	klog.V(0).Info("Leaving getPodsUpdateOrder with list of pods of length %d", len(priorityCalculator.GetSortedPods(u.evictionAdmission)))
 	return priorityCalculator.GetSortedPods(u.evictionAdmission)
 }
 
